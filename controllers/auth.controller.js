@@ -65,40 +65,48 @@ export const verifyEmail = async (req, res) => {
 };
 
 export const login = async (req, res) => {
- 
-  const { email, password } = req.body;
-  try {
-     if( !email || !password) 
-      {
-        return res.status(400).json({ message: "All fields are required" });
-      }
+    const { email, password } = req.body;
 
-      const user = await User.findOne({ email });
-        if (!user) {
-           return res.status(401).json({ message: "Invalid credentials" });
+    try {
+        if (!email || !password) {
+            return res.status(400).json({ message: "All fields are required" });
         }
-        
-        if (user.isVerified === false){
-          return res.status(403).json({ message: "Please verify your email first" });
+
+        const user = await User.findOne({ email });
+        if (!user) {
+            return res.status(401).json({ message: "Invalid credentials" });
+        }
+
+        if (!user.isVerified) {
+            return res.status(403).json({ message: "Please verify your email first" });
         }
 
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) {
-          return res.status(401).json({ message: "Invalid credentials" });
+            return res.status(401).json({ message: "Invalid credentials" });
         }
 
-        generateTokenAndSetCookie(res, user._id)
+        // Generate the token and set it as a cookie
+        const token = generateTokenAndSetCookie(res, user); // Get the token for logging
 
+        // Log the generated token to see its contents
+        console.log("Generated Token:", token);
+
+        // Update last login time
         user.lastLogin = new Date();
         await user.save();
-        res.status(201).json({ message: "Login successful", user: { ...user._doc, password: undefined } });
-      
 
-  } catch (error) {
-    console.log("Error in login", error);
-    res.status(400).json({ success: false, message: error.message });
-  }
+        // Send a success response (optional user info without password)
+        res.status(200).json({
+            message: "Login successful",
+            user: { ...user._doc, password: undefined }, // Send user info without password
+        });
+    } catch (error) {
+        console.log("Error in login", error);
+        res.status(500).json({ success: false, message: error.message });
+    }
 };
+
 
 export const logout = async (req, res) => {
  res.clearCookie("token")
@@ -189,6 +197,12 @@ export const checkAuth = async (req, res) => {
     res.status(500).json({ success: false, message: "Internal server error" });
   }
 };
+
+
+
+export const adminCheck = async(req, res) => {
+  res.json({message: "Welcome to Admin"})
+}
 
 
 
